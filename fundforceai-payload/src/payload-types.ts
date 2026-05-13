@@ -155,6 +155,9 @@ export interface User {
  */
 export interface Client {
   id: number;
+  /**
+   * Public-facing client ID, for example FF-2841.
+   */
   externalId: string;
   name: string;
   signedAt?: string | null;
@@ -163,6 +166,9 @@ export interface Client {
   pointOfContact?: string | null;
   email?: string | null;
   phone?: string | null;
+  /**
+   * Sensitive business identifier. Mask this on the frontend if shown.
+   */
   ein?: string | null;
   address?: string | null;
   /**
@@ -174,6 +180,9 @@ export interface Client {
         vendorId: string;
         name: string;
         purpose?: string | null;
+        /**
+         * Dollar amount, not cents.
+         */
         amount: number;
         method?: ('Card' | 'ACH' | 'Manual') | null;
         status?: ('Pending' | 'Processing' | 'Completed' | 'Failed') | null;

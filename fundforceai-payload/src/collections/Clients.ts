@@ -40,6 +40,10 @@ export const Clients: CollectionConfig = {
   },
 
   access: {
+    admin: ({ req: { user } }) => {
+      return isSuperAdminOrAdmin(user)
+    },
+
     read: ({ req: { user } }) => {
       if (!user) return false
 
@@ -81,6 +85,9 @@ export const Clients: CollectionConfig = {
       type: 'text',
       required: true,
       unique: true,
+      admin: {
+        description: 'Public-facing client ID, for example FF-2841.',
+      },
     },
     {
       name: 'name',
@@ -123,6 +130,10 @@ export const Clients: CollectionConfig = {
     {
       name: 'ein',
       type: 'text',
+      admin: {
+        description:
+          'Sensitive business identifier. Mask this on the frontend if shown.',
+      },
     },
     {
       name: 'address',
@@ -132,6 +143,7 @@ export const Clients: CollectionConfig = {
       name: 'totalAllocation',
       type: 'number',
       defaultValue: 0,
+      min: 0,
       admin: {
         description:
           'Dollar amount, not cents, to match current frontend mock shape.',
@@ -159,6 +171,10 @@ export const Clients: CollectionConfig = {
           name: 'amount',
           type: 'number',
           required: true,
+          min: 0,
+          admin: {
+            description: 'Dollar amount, not cents.',
+          },
         },
         {
           name: 'method',
