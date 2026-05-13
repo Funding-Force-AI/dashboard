@@ -1,20 +1,47 @@
+import { useState } from "react";
 import { ArrowRight, KeyRound, Lock, Mail, ShieldCheck, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { getCurrentUser, loginUser, logoutUser } from "@/lib/auth";
+
 export default function AdminLogin() {
   const navigate = useNavigate();
 
-  function handleMockLogin(event) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleLogin(event) {
     event.preventDefault();
 
-    // Later:
-    // await payloadLogin(email, password)
-    // then navigate("/admin")
+    try {
+      setError("");
+      setIsSubmitting(true);
 
-    navigate("/admin");
+      await loginUser({
+        email,
+        password,
+      });
+
+      const me = await getCurrentUser();
+      const role = me.user?.role;
+
+      if (!["super_admin", "admin"].includes(role)) {
+        await logoutUser();
+        throw new Error("This account is not authorized for admin access.");
+      }
+
+      navigate("/admin");
+    } catch (error) {
+      setError(error.message || "Admin login failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -115,7 +142,7 @@ export default function AdminLogin() {
                 </p>
               </div>
 
-              <form onSubmit={handleMockLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
                     Admin email
@@ -125,7 +152,11 @@ export default function AdminLogin() {
                     <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                     <Input
                       type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
                       placeholder="admin@merbi.com"
+                      autoComplete="email"
+                      required
                       className="h-12 rounded-2xl border-white/[0.08] bg-black/30 pl-11 text-white placeholder:text-white/25 focus-visible:ring-[#fe8200]/50"
                     />
                   </div>
@@ -149,17 +180,28 @@ export default function AdminLogin() {
                     <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                     <Input
                       type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
                       placeholder="••••••••"
+                      autoComplete="current-password"
+                      required
                       className="h-12 rounded-2xl border-white/[0.08] bg-black/30 pl-11 text-white placeholder:text-white/25 focus-visible:ring-[#fe8200]/50"
                     />
                   </div>
                 </div>
 
+                {error && (
+                  <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    {error}
+                  </div>
+                )}
+
                 <Button
                   type="submit"
-                  className="h-12 w-full rounded-2xl bg-[#fe8200] font-semibold text-black shadow-[0_0_32px_rgba(254,130,0,0.22)] hover:bg-[#ff9b2f]"
+                  disabled={isSubmitting}
+                  className="h-12 w-full rounded-2xl bg-[#fe8200] font-semibold text-black shadow-[0_0_32px_rgba(254,130,0,0.22)] hover:bg-[#ff9b2f] disabled:opacity-60"
                 >
-                  Enter admin console
+                  {isSubmitting ? "Checking access..." : "Enter admin console"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </form>
@@ -168,9 +210,8 @@ export default function AdminLogin() {
                 <div className="flex gap-3">
                   <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-300" />
                   <p className="text-xs leading-5 text-white/45">
-                    Later this will use Payload auth with admin-only role
-                    checks, HTTP-only cookies, password reset, and protected
-                    routes.
+                    Protected by Payload auth, role checks, HTTP-only cookies,
+                    and locked admin routes.
                   </p>
                 </div>
               </div>

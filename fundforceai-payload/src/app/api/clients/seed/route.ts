@@ -4,10 +4,13 @@ import { getPayload } from 'payload'
 import { mockClients } from '@/lib/seed/mockClients'
 import { toPayloadClient } from '@/lib/seed/transformClient'
 
+const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173'
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'http://localhost:5173',
+  'Access-Control-Allow-Origin': allowedOrigin,
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Credentials': 'true',
 }
 
 export const OPTIONS = async () => {

@@ -20,7 +20,7 @@ export default function LandingHero() {
             </div>
 
             <p className="text-lg font-semibold tracking-tight">
-            Funding Force <span className="text-[#fe8200]">AI</span>
+           Merbi <span className="text-[#fe8200]">AI</span>
             </p>
           </div>
 

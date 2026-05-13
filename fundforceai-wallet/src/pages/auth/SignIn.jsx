@@ -1,9 +1,49 @@
+import { useState } from "react";
 import { ArrowRight, Lock, Mail, Shield, Sparkles, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { getCurrentUser, loginUser, logoutUser } from "@/lib/auth";
+
 export default function SignIn() {
+  const navigate = useNavigate();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleLogin(event) {
+    event.preventDefault();
+
+    try {
+      setError("");
+      setIsSubmitting(true);
+
+      await loginUser({
+        email,
+        password,
+      });
+
+      const me = await getCurrentUser();
+      const role = me.user?.role;
+
+      if (!["super_admin", "client"].includes(role)) {
+        await logoutUser();
+        throw new Error("This account is not authorized for client access.");
+      }
+
+      navigate("/user");
+    } catch (error) {
+      setError(error.message || "Sign in failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="grid min-h-screen lg:grid-cols-[0.95fr_1.05fr]">
@@ -97,11 +137,11 @@ export default function SignIn() {
                 </h2>
 
                 <p className="mt-3 text-sm leading-6 text-white/45">
-                  Access your admin console or client mirror.
+                  Access your secure client mirror.
                 </p>
               </div>
 
-              <form className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
                     Email
@@ -111,7 +151,11 @@ export default function SignIn() {
                     <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                     <Input
                       type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
                       placeholder="you@company.com"
+                      autoComplete="email"
+                      required
                       className="h-12 rounded-2xl border-white/[0.08] bg-black/30 pl-11 text-white placeholder:text-white/25 focus-visible:ring-[#fe8200]/50"
                     />
                   </div>
@@ -135,17 +179,28 @@ export default function SignIn() {
                     <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                     <Input
                       type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
                       placeholder="••••••••"
+                      autoComplete="current-password"
+                      required
                       className="h-12 rounded-2xl border-white/[0.08] bg-black/30 pl-11 text-white placeholder:text-white/25 focus-visible:ring-[#fe8200]/50"
                     />
                   </div>
                 </div>
 
+                {error && (
+                  <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    {error}
+                  </div>
+                )}
+
                 <Button
-                  type="button"
-                  className="h-12 w-full rounded-2xl bg-[#fe8200] font-semibold text-black shadow-[0_0_32px_rgba(254,130,0,0.22)] hover:bg-[#ff9b2f]"
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="h-12 w-full rounded-2xl bg-[#fe8200] font-semibold text-black shadow-[0_0_32px_rgba(254,130,0,0.22)] hover:bg-[#ff9b2f] disabled:opacity-60"
                 >
-                  Sign in
+                  {isSubmitting ? "Checking access..." : "Sign in"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </form>
@@ -154,15 +209,18 @@ export default function SignIn() {
                 <div className="flex gap-3">
                   <Shield className="mt-0.5 h-4 w-4 text-emerald-300" />
                   <p className="text-xs leading-5 text-white/45">
-                    Access is role-based. Admins manage all clients. Client
-                    users only see their linked account mirror.
+                    Access is role-based. Client users only see their linked
+                    account mirror.
                   </p>
                 </div>
               </div>
 
               <p className="mt-6 text-center text-xs text-white/35">
                 Need access?{" "}
-                <button className="font-medium text-white/70 hover:text-white">
+                <button
+                  type="button"
+                  className="font-medium text-white/70 hover:text-white"
+                >
                   Contact your Merbi admin
                 </button>
               </p>

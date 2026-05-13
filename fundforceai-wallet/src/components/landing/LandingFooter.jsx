@@ -18,7 +18,7 @@ export default function LandingFooter() {
 
               <div>
                 <p className="text-sm font-bold uppercase tracking-[0.22em]">
-                  FundingForceAI
+                Merbi AI
                 </p>
                 <p className="text-xs text-black/55">Capital intelligence</p>
               </div>
@@ -48,7 +48,7 @@ export default function LandingFooter() {
               </p>
 
               <h2 className="text-5xl font-semibold leading-[0.9] tracking-[-0.07em] md:text-7xl lg:text-8xl">
-                Funding Force AI
+                Merbi AI
               </h2>
 
               <p className="mt-6 max-w-xl text-sm leading-6 text-black/65 md:text-base">
@@ -76,7 +76,7 @@ export default function LandingFooter() {
 
         <div className="mt-16 flex flex-col gap-6 border-t border-black/15 pt-8 md:flex-row md:items-end md:justify-between">
           <p className="max-w-3xl text-xs leading-5 text-black/55">
-            Funding Force AI is a capital operations and visibility platform.
+            Merbi AI is a capital operations and visibility platform.
             It does not originate payments, provide investment advice, or act as
             a bank. Product availability and workflows may vary by client.
           </p>
@@ -88,14 +88,14 @@ export default function LandingFooter() {
             <a href="#" className="inline-flex items-center gap-1 hover:text-black">
               Terms <ArrowUpRight className="h-3 w-3" />
             </a>
-            <span>© 2026 Funding Force AI</span>
+            <span>© 2026 Merbi AI</span>
           </div>
         </div>
       </div>
 
       <div className="relative z-10 -mb-8 overflow-hidden px-4">
         <h3 className="select-none text-[18vw] font-black leading-none tracking-[-0.12em] text-black">
-          FF AI
+          Merbi
         </h3>
       </div>
     </footer>

@@ -114,7 +114,7 @@ export default function Admin() {
 
             <div>
               <p className="text-sm font-semibold tracking-tight">
-                FundingForce <span className="text-[#fe8200]">AI</span>
+                Merbi <span className="text-[#fe8200]">AI</span>
               </p>
               <p className="text-xs text-white/40">Treasury operations</p>
             </div>

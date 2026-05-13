@@ -1,4 +1,7 @@
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Clock3 } from "lucide-react";
+
+import { getMetrics } from "@/lib/metrics";
 
 function money(value) {
   return new Intl.NumberFormat("en-US", {
@@ -8,55 +11,123 @@ function money(value) {
   }).format(Number(value || 0));
 }
 
-export default function MetricsStrip({ clients }) {
-  const totalPending = clients.reduce((clientTotal, client) => {
-    const vendorTotal = client.vendors
-      .filter((vendor) => vendor.status !== "Completed")
-      .reduce((sum, vendor) => sum + Number(vendor.amount || 0), 0);
+function normalizeStatus(status) {
+  return String(status || "").trim().toLowerCase();
+}
 
-    return clientTotal + vendorTotal;
-  }, 0);
+function getFallbackMetrics(clients = []) {
+  const firmAvailableCapital = 25840000;
 
-  const totalCompleted = clients.reduce((clientTotal, client) => {
-    const vendorTotal = client.vendors
-      .filter((vendor) => vendor.status === "Completed")
-      .reduce((sum, vendor) => sum + Number(vendor.amount || 0), 0);
+  let totalPlannedCapital = 0;
+  let pendingDisbursement = 0;
+  let completedCapital = 0;
+  let inFlight = 0;
 
-    return clientTotal + vendorTotal;
-  }, 0);
+  let pendingCount = 0;
+  let completedCount = 0;
+  let processingCount = 0;
+  let vendorLineCount = 0;
 
-  const inFlight = clients.reduce((clientTotal, client) => {
-    const vendorTotal = client.vendors
-      .filter((vendor) => vendor.status === "Processing")
-      .reduce((sum, vendor) => sum + Number(vendor.amount || 0), 0);
+  for (const client of clients) {
+    const vendors = client.vendors || [];
 
-    return clientTotal + vendorTotal;
-  }, 0);
+    for (const vendor of vendors) {
+      const amount = Number(vendor.amount || 0);
+      const status = normalizeStatus(vendor.status);
+
+      totalPlannedCapital += amount;
+      vendorLineCount += 1;
+
+      if (status === "completed") {
+        completedCapital += amount;
+        completedCount += 1;
+      } else if (status === "processing") {
+        inFlight += amount;
+        processingCount += 1;
+      } else {
+        pendingDisbursement += amount;
+        pendingCount += 1;
+      }
+    }
+  }
+
+  return {
+    firmAvailableCapital,
+    availableCapital: firmAvailableCapital,
+    availableAfterPlanned: firmAvailableCapital - totalPlannedCapital,
+    availableAfterCompleted: firmAvailableCapital - completedCapital,
+
+    totalPlannedCapital,
+    pendingDisbursement,
+    inFlight,
+    completedCapital,
+    disbursedToday: completedCapital,
+
+    merchantCount: clients.length,
+    vendorLineCount,
+    pendingCount,
+    processingCount,
+    completedCount,
+  };
+}
+
+export default function MetricsStrip({ clients = [] }) {
+  const [backendMetrics, setBackendMetrics] = useState(null);
+  const [metricsError, setMetricsError] = useState("");
+
+  async function loadMetrics() {
+    try {
+      setMetricsError("");
+
+      const data = await getMetrics();
+      setBackendMetrics(data.metrics);
+    } catch (error) {
+      setMetricsError(error.message || "Failed to load metrics.");
+    }
+  }
+
+  useEffect(() => {
+    loadMetrics();
+
+    const intervalId = window.setInterval(() => {
+      loadMetrics();
+    }, 10000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const fallbackMetrics = useMemo(() => {
+    return getFallbackMetrics(clients);
+  }, [clients]);
+
+  const liveMetrics = backendMetrics || fallbackMetrics;
 
   const metrics = [
     {
       label: "Available capital",
-      value: "$2,840,000",
-      change: "+12.4%",
+      value: money(liveMetrics.availableAfterPlanned),
+      change: metricsError
+        ? "fallback data"
+        : `${money(liveMetrics.firmAvailableCapital)} firm pool`,
       direction: "up",
       primary: true,
     },
     {
       label: "Pending disbursement",
-      value: money(totalPending),
-      change: `${clients.length} merchants`,
+      value: money(liveMetrics.pendingDisbursement),
+      change: `${liveMetrics.pendingCount || 0} pending lines`,
       direction: "neutral",
     },
     {
       label: "Disbursed today",
-      value: money(totalCompleted || 28750),
-      change: "completed capital",
+      value: money(liveMetrics.disbursedToday),
+      change: `${liveMetrics.completedCount || 0} completed lines`,
       direction: "up",
     },
     {
       label: "In flight",
-      value: money(inFlight || 10000),
-      change: "settling now",
+      value: money(liveMetrics.inFlight),
+      change: `${liveMetrics.processingCount || 0} settling now`,
       direction: "neutral",
     },
   ];

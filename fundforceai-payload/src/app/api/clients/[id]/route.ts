@@ -1,10 +1,13 @@
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
+const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173'
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'http://localhost:5173',
+  'Access-Control-Allow-Origin': allowedOrigin,
   'Access-Control-Allow-Methods': 'GET, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Credentials': 'true',
 }
 
 type Params = {

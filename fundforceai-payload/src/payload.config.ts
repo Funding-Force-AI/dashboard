@@ -13,6 +13,8 @@ import { Clients } from './collections/Clients'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173'
+
 export default buildConfig({
   admin: {
     user: Users.slug,
@@ -20,6 +22,10 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
+
+  cors: [frontendURL],
+  csrf: [frontendURL],
+
   collections: [Users, Media, Clients, Disbursements],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
