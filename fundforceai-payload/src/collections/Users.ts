@@ -8,6 +8,10 @@ function isAdmin(user: any) {
   return user?.role === 'admin'
 }
 
+function isClient(user: any) {
+  return user?.role === 'client'
+}
+
 function isSuperAdminOrAdmin(user: any) {
   return isSuperAdmin(user) || isAdmin(user)
 }
@@ -42,11 +46,15 @@ export const Users: CollectionConfig = {
         }
       }
 
-      return {
-        id: {
-          equals: user.id,
-        },
+      if (isClient(user)) {
+        return {
+          id: {
+            equals: user.id,
+          },
+        }
       }
+
+      return false
     },
 
     create: ({ req: { user }, data }) => {
@@ -57,7 +65,9 @@ export const Users: CollectionConfig = {
       }
 
       if (isAdmin(user)) {
-        return data?.role === 'client'
+        const requestedRole = data?.role || 'client'
+
+        return requestedRole === 'client'
       }
 
       return false
@@ -82,11 +92,15 @@ export const Users: CollectionConfig = {
         }
       }
 
-      return {
-        id: {
-          equals: user.id,
-        },
+      if (isClient(user)) {
+        return {
+          id: {
+            equals: user.id,
+          },
+        }
       }
+
+      return false
     },
 
     delete: ({ req: { user } }) => {
@@ -134,6 +148,14 @@ export const Users: CollectionConfig = {
       required: false,
       admin: {
         condition: (_, siblingData) => siblingData?.role === 'client',
+      },
+      access: {
+        create: ({ req: { user } }) => {
+          return isSuperAdminOrAdmin(user)
+        },
+        update: ({ req: { user } }) => {
+          return isSuperAdminOrAdmin(user)
+        },
       },
     },
   ],
