@@ -29,29 +29,29 @@ async function apiRequest(path, options = {}) {
 }
 
 export async function getClients() {
-  return apiRequest("/api/clients");
+  return apiRequest("/api/portal-clients");
 }
 
 export async function getClient(clientId) {
-  return apiRequest(`/api/clients/${encodeURIComponent(clientId)}`);
+  return apiRequest(`/api/portal-clients/${encodeURIComponent(clientId)}`);
 }
 
 export async function createClient(payload) {
-  return apiRequest("/api/clients", {
+  return apiRequest("/api/portal-clients", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function updateClient(clientId, patch) {
-  return apiRequest(`/api/clients/${encodeURIComponent(clientId)}`, {
+  return apiRequest(`/api/portal-clients/${encodeURIComponent(clientId)}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
   });
 }
 
 export async function deleteClient(clientId) {
-  return apiRequest(`/api/clients/${encodeURIComponent(clientId)}`, {
+  return apiRequest(`/api/portal-clients/${encodeURIComponent(clientId)}`, {
     method: "DELETE",
   });
 }
