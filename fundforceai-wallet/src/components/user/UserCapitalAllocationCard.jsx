@@ -3,7 +3,7 @@ import { Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
-import { money, normalizeStatus } from "@/lib/userDashboard";
+import { money, normalizeStatus } from "@/lib/helpers";
 
 export default function UserCapitalAllocationCard({ vendors }) {
   return (

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
-import { initials } from "@/lib/userDashboard";
+import { initials } from "@/lib/helpers";
 
 export default function UserTopNav({ client, onOpenAccount }) {
   return (

@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Clock3 } from "lucide-react";
 
-import { getMetrics } from "@/lib/metrics";
+import { getMetrics } from "@/lib/api";
+import { money, normalizeStatus } from "@/lib/helpers";
 
-function money(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-}
 
-function normalizeStatus(status) {
-  return String(status || "").trim().toLowerCase();
-}
 
 function getFallbackMetrics(clients = []) {
   const firmAvailableCapital = 25840000;

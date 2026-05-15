@@ -9,22 +9,8 @@ import MetricsStrip from "@/components/admin/MetricsStrip";
 import CapitalQueue from "@/components/admin/CapitalQueue";
 import CapitalAllocationCard from "@/components/admin/CapitalAllocationCard";
 
-import { getClients } from "@/lib/client";
-
-function normalizeClient(client) {
-  return {
-    ...client,
-
-    // keep Payload internal DB id available
-    payloadId: client.payloadId || client.id,
-
-    // app-facing id stays FF-2841, FF-2842, etc.
-    id: client.externalId || client.id,
-
-    vendors: client.vendors || [],
-    history: client.history || [],
-  };
-}
+import { getClients } from "@/lib/api";
+import { normalizeClient } from "@/lib/helpers";
 
 export default function Admin() {
   const [clients, setClients] = useState([]);

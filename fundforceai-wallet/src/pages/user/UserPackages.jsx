@@ -8,16 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
-import { getClients } from "@/lib/client";
-import { getClientFundingStats, normalizeClient } from "@/lib/userDashboard";
-
-function money(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-}
+import { getClients } from "@/lib/api";
+import { getClientFundingStats, normalizeClient, money } from "@/lib/helpers";
 
 const PACKAGES = [
   {

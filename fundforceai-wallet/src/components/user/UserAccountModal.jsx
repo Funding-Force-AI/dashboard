@@ -22,6 +22,8 @@ import { Badge } from "@/components/ui/badge";
 
 import WalletPaymentCards from "@/components/user/WalletPaymentCards";
 
+import { money } from "@/lib/helpers";
+
 const PACKAGE_OPTIONS = [
   {
     id: "foundation",
@@ -60,14 +62,6 @@ const PACKAGE_OPTIONS = [
       "Full-scale growth infrastructure across paid media, automation, analytics, creative, and brand authority.",
   },
 ];
-
-function money(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-}
 
 function getSuggestedPackage(totalPlanned) {
   if (totalPlanned >= 100000) return "Legacy";

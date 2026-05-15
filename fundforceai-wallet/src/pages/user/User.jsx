@@ -10,12 +10,12 @@ import UserCapitalAllocationCard from "@/components/user/UserCapitalAllocationCa
 import UserFundingSummaryCard from "@/components/user/UserFundingSummaryCard";
 import UserAccountModal from "@/components/user/UserAccountModal";
 
-import { getClients } from "@/lib/client";
+import { getClients } from "@/lib/api";
 import {
   buildScenario,
   getClientFundingStats,
   normalizeClient,
-} from "@/lib/userDashboard";
+} from "@/lib/helpers";
 
 export default function User() {
   const [client, setClient] = useState(null);

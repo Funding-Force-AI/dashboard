@@ -1,6 +1,6 @@
 import { Building2, CheckCircle2, DollarSign } from "lucide-react";
 
-import { money } from "@/lib/userDashboard";
+import { money } from "@/lib/helpers";
 
 export default function UserHeroSection({ client, totalPlanned }) {
   return (

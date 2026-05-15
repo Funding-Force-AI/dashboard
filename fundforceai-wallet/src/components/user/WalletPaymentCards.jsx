@@ -10,13 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-function money(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-}
+import { money } from "@/lib/helpers";
 
 export default function WalletPaymentCards({ client, totalPlanned, pendingTotal }) {
   const lastFour = "••••";

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { getCurrentUser, loginUser, logoutUser } from "@/lib/auth";
+import { getCurrentUser, loginUser, logoutUser } from "@/lib/api";
 
 export default function AdminLogin() {
   const navigate = useNavigate();

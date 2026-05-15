@@ -3,7 +3,7 @@ import { ArrowRight, Bolt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-import { money } from "@/lib/userDashboard";
+import { money } from "@/lib/helpers";
 
 export default function UserDeployScenarioCard({ scenario }) {
   return (

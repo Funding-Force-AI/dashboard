@@ -19,70 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-import { getClients } from "@/lib/client";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-
-function money(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-}
-
-function normalizeStatus(status) {
-  return String(status || "").trim().toLowerCase();
-}
-
-function getClientTotal(client) {
-  const vendors = client?.vendors || [];
-
-  return vendors.reduce((sum, vendor) => {
-    return sum + Number(vendor.amount || 0);
-  }, 0);
-}
+import { getClients, getUsers } from "@/lib/api";
+import { money, normalizeStatus, getClientTotal, getRelatedClientName } from "@/lib/helpers";
 
 function getClientContact(client) {
   return client?.pointOfContact || "—";
-}
-
-function getRelatedClientName(user) {
-  const relatedClient = user?.relatedClient;
-
-  if (!relatedClient) return "—";
-
-  if (typeof relatedClient === "object") {
-    return relatedClient.name || relatedClient.externalId || relatedClient.id;
-  }
-
-  return relatedClient;
-}
-
-async function getUsers() {
-  const res = await fetch(`${API_BASE_URL}/api/users?limit=100&depth=1`, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  const data = await res.json().catch(() => ({}));
-
-  if (res.status === 401) {
-    throw new Error("Not authenticated.");
-  }
-
-  if (res.status === 403) {
-    throw new Error("You do not have access to users.");
-  }
-
-  if (!res.ok) {
-    throw new Error(data.error || data.message || "Failed to fetch users.");
-  }
-
-  return data;
 }
 
 export default function AdminManagement() {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/api";
 
 export default function ProtectedRoute({
   children,

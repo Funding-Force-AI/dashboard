@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Building2, Save, Send, X } from "lucide-react";
 
-import { createDisbursement } from "@/lib/disbursements";
-import { updateClient } from "@/lib/client";
+import { createDisbursement, updateClient } from "@/lib/api";
+import { money } from "@/lib/helpers";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,13 +31,7 @@ const DEFAULT_TAG_OPTIONS = [
   "Other",
 ];
 
-function formatMoney(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-}
+const formatMoney = money;
 
 function formatInputNumber(value) {
   const onlyNumbers = String(value || "").replace(/[^\d]/g, "");

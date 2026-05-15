@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
-import { money } from "@/lib/userDashboard";
+import { money } from "@/lib/helpers";
 
 export default function UserFundingSummaryCard({
   client,

@@ -18,8 +18,8 @@ import UserTopNav from "@/components/user/UserTopNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-import { getClients } from "@/lib/client";
-import { normalizeClient } from "@/lib/userDashboard";
+import { getClients } from "@/lib/api";
+import { normalizeClient } from "@/lib/helpers";
 
 const REQUEST_TYPES = [
   {

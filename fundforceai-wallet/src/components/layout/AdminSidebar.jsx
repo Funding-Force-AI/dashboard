@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
-import { logoutUser } from "@/lib/auth";
+import { logoutUser } from "@/lib/api";
 
 const adminLinks = [
   {
