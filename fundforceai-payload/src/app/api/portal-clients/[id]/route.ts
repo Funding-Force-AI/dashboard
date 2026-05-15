@@ -1,181 +1,130 @@
-import configPromise from '@payload-config'
-import { getPayload } from 'payload'
+/**
+ * GET    /api/portal-clients/:id — get one client by externalId
+ * PATCH  /api/portal-clients/:id — update a client (admin+ only)
+ * DELETE /api/portal-clients/:id — delete a client (super_admin only)
+ *
+ * All lookups go through externalId (the public-facing FF-XXXX id),
+ * not the internal Payload DB id.
+ */
 
-const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173'
+import {
+  withAuth,
+  withCors,
+  apiJson,
+  apiError,
+  isSuperAdminOrAdmin,
+  isClient,
+  getRelatedClientId,
+} from '@/lib/apiHandler'
+import { sanitizeClient } from '@/lib/sanitize'
+import { validateUpdateClient } from '@/lib/validate'
+import type { Payload } from 'payload'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': allowedOrigin,
-  'Access-Control-Allow-Methods': 'GET, PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
-}
+// ---------------------------------------------------------------------------
+// Helper: find by externalId with access control
+// ---------------------------------------------------------------------------
 
-type Params = {
-  params: Promise<{
-    id: string
-  }>
-}
-
-async function findClientByExternalId(payload: any, externalId: string) {
+async function findByExternalId(payload: Payload, externalId: string, user: any) {
   const result = await payload.find({
     collection: 'clients',
-    where: {
-      externalId: {
-        equals: externalId,
-      },
-    },
+    where: { externalId: { equals: externalId } },
     limit: 1,
+    overrideAccess: false,
+    user,
+  })
+  return result.docs[0] || null
+}
+
+// ---------------------------------------------------------------------------
+// Route params type
+// ---------------------------------------------------------------------------
+
+type RouteContext = {
+  params: Promise<{ id: string }>
+}
+
+// ---------------------------------------------------------------------------
+// Handlers
+// ---------------------------------------------------------------------------
+
+export const OPTIONS = withCors()
+
+// ---- GET: single client ----
+export const GET = withAuth([], async ({ payload, user, request }) => {
+  const url = new URL(request.url)
+  const segments = url.pathname.split('/')
+  const externalId = segments[segments.length - 1]
+
+  // Client-role users can only see their own relatedClient
+  if (isClient(user)) {
+    const relatedId = getRelatedClientId(user)
+    // For client role, we need to verify after lookup
+  }
+
+  const client = await findByExternalId(payload, externalId, user)
+
+  if (!client) {
+    return apiError('Client not found', 404)
+  }
+
+  // Additional check: client-role can only see their own record
+  if (isClient(user)) {
+    const relatedId = getRelatedClientId(user)
+    if (!relatedId || String(client.id) !== String(relatedId)) {
+      return apiError('Client not found', 404)
+    }
+  }
+
+  const showFullEin = isSuperAdminOrAdmin(user)
+  return apiJson({ ok: true, client: sanitizeClient(client, { showFullEin }) })
+})
+
+// ---- PATCH: update client ----
+export const PATCH = withAuth(['super_admin', 'admin'], async ({ payload, user, request }) => {
+  const url = new URL(request.url)
+  const segments = url.pathname.split('/')
+  const externalId = segments[segments.length - 1]
+
+  const body = await request.json()
+
+  const validationError = validateUpdateClient(body)
+  if (validationError) {
+    return apiError(validationError, 400)
+  }
+
+  const client = await findByExternalId(payload, externalId, user)
+  if (!client) {
+    return apiError('Client not found', 404)
+  }
+
+  const updated = await payload.update({
+    collection: 'clients',
+    id: client.id,
+    data: body,
+    overrideAccess: false,
+    user,
   })
 
-  return result.docs[0]
-}
+  return apiJson({ ok: true, message: 'Client updated', client: sanitizeClient(updated, { showFullEin: true }) })
+})
 
-export const OPTIONS = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: corsHeaders,
+// ---- DELETE: delete client ----
+export const DELETE = withAuth(['super_admin'], async ({ payload, user, request }) => {
+  const url = new URL(request.url)
+  const segments = url.pathname.split('/')
+  const externalId = segments[segments.length - 1]
+
+  const client = await findByExternalId(payload, externalId, user)
+  if (!client) {
+    return apiError('Client not found', 404)
+  }
+
+  await payload.delete({
+    collection: 'clients',
+    id: client.id,
+    overrideAccess: false,
+    user,
   })
-}
 
-export const GET = async (_request: Request, { params }: Params) => {
-  try {
-    const { id } = await params
-    const payload = await getPayload({ config: configPromise })
-
-    const client = await findClientByExternalId(payload, id)
-
-    if (!client) {
-      return Response.json(
-        {
-          ok: false,
-          error: 'Client not found',
-        },
-        {
-          status: 404,
-          headers: corsHeaders,
-        },
-      )
-    }
-
-    return Response.json(
-      {
-        ok: true,
-        client,
-      },
-      {
-        headers: corsHeaders,
-      },
-    )
-  } catch (error: any) {
-    return Response.json(
-      {
-        ok: false,
-        error: error?.message || 'Failed to load client',
-      },
-      {
-        status: 500,
-        headers: corsHeaders,
-      },
-    )
-  }
-}
-
-export const PATCH = async (request: Request, { params }: Params) => {
-  try {
-    const { id } = await params
-    const payload = await getPayload({ config: configPromise })
-    const body = await request.json()
-
-    const client = await findClientByExternalId(payload, id)
-
-    if (!client) {
-      return Response.json(
-        {
-          ok: false,
-          error: 'Client not found',
-        },
-        {
-          status: 404,
-          headers: corsHeaders,
-        },
-      )
-    }
-
-    const updated = await payload.update({
-      collection: 'clients',
-      id: client.id,
-      data: body,
-    })
-
-    return Response.json(
-      {
-        ok: true,
-        message: 'Client updated',
-        client: updated,
-      },
-      {
-        headers: corsHeaders,
-      },
-    )
-  } catch (error: any) {
-    return Response.json(
-      {
-        ok: false,
-        error: error?.message || 'Failed to update client',
-      },
-      {
-        status: 500,
-        headers: corsHeaders,
-      },
-    )
-  }
-}
-
-export const DELETE = async (_request: Request, { params }: Params) => {
-  try {
-    const { id } = await params
-    const payload = await getPayload({ config: configPromise })
-
-    const client = await findClientByExternalId(payload, id)
-
-    if (!client) {
-      return Response.json(
-        {
-          ok: false,
-          error: 'Client not found',
-        },
-        {
-          status: 404,
-          headers: corsHeaders,
-        },
-      )
-    }
-
-    await payload.delete({
-      collection: 'clients',
-      id: client.id,
-    })
-
-    return Response.json(
-      {
-        ok: true,
-        message: 'Client deleted',
-        deletedExternalId: id,
-      },
-      {
-        headers: corsHeaders,
-      },
-    )
-  } catch (error: any) {
-    return Response.json(
-      {
-        ok: false,
-        error: error?.message || 'Failed to delete client',
-      },
-      {
-        status: 500,
-        headers: corsHeaders,
-      },
-    )
-  }
-}
+  return apiJson({ ok: true, message: 'Client deleted', deletedExternalId: externalId })
+})

@@ -1,232 +1,76 @@
-import configPromise from '@payload-config'
-import { getPayload } from 'payload'
+/**
+ * GET  /api/disbursements — list disbursements (admin+ only)
+ * POST /api/disbursements — create a disbursement (admin+ only)
+ *
+ * Client-role users will eventually see their own disbursements
+ * through a separate scoped endpoint or via the client portal.
+ */
 
-type CreateDisbursementBody = {
-  clientId?: string
-  clientName?: string
-  vendorId?: string
-  vendorName?: string
-  amountCents?: number
-  purpose?: string
-  description?: string
-}
+import { withAuth, withCors, apiJson, apiError } from '@/lib/apiHandler'
+import { validateCreateDisbursement, normalizePurpose } from '@/lib/validate'
 
-const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173'
+export const OPTIONS = withCors()
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': allowedOrigin,
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
-}
-
-const allowedPurposes = new Set([
-  'marketing',
-  'google_ads',
-  'seo',
-  'web_dev',
-  'lead_gen',
-  'consulting',
-  'other',
-])
-
-function normalizePurpose(purpose?: string) {
-  const map: Record<string, string> = {
-    Marketing: 'marketing',
-    'Google Ads': 'google_ads',
-    'Meta Ads': 'marketing',
-    'Local SEO': 'seo',
-    'SMS/email campaign': 'marketing',
-    'Booking page rebuild': 'web_dev',
-    'Lead generation': 'lead_gen',
-    'Creative services': 'marketing',
-    Consulting: 'consulting',
-    Other: 'other',
-
-    marketing: 'marketing',
-    google_ads: 'google_ads',
-    seo: 'seo',
-    web_dev: 'web_dev',
-    lead_gen: 'lead_gen',
-    consulting: 'consulting',
-    other: 'other',
-  }
-
-  return map[purpose || ''] || 'other'
-}
-
-export const OPTIONS = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: corsHeaders,
+// ---- GET: list disbursements ----
+export const GET = withAuth(['super_admin', 'admin'], async ({ payload, user }) => {
+  const disbursements = await payload.find({
+    collection: 'disbursements',
+    limit: 100,
+    sort: '-createdAt',
+    overrideAccess: false,
+    user,
   })
-}
 
-export const GET = async () => {
-  try {
-    const payload = await getPayload({
-      config: configPromise,
-    })
+  const docs = disbursements.docs || []
 
-    const disbursements = await payload.find({
-      collection: 'disbursements',
-      limit: 100,
-      sort: '-createdAt',
-    })
+  const totalCents = docs.reduce((sum: number, item: any) => sum + Number(item.amountCents || 0), 0)
+  const pendingCents = docs
+    .filter((item: any) => item.status === 'pending' || item.status === 'processing')
+    .reduce((sum: number, item: any) => sum + Number(item.amountCents || 0), 0)
+  const completedCents = docs
+    .filter((item: any) => item.status === 'completed')
+    .reduce((sum: number, item: any) => sum + Number(item.amountCents || 0), 0)
 
-    const totalCents = disbursements.docs.reduce((sum: number, item: any) => {
-      return sum + Number(item.amountCents || 0)
-    }, 0)
+  return apiJson({
+    ok: true,
+    message: 'Disbursements loaded',
+    count: disbursements.totalDocs,
+    metrics: { totalCents, pendingCents, completedCents },
+    disbursements: docs,
+  })
+})
 
-    const pendingCents = disbursements.docs
-      .filter(
-        (item: any) =>
-          item.status === 'pending' || item.status === 'processing',
-      )
-      .reduce((sum: number, item: any) => sum + Number(item.amountCents || 0), 0)
+// ---- POST: create a disbursement ----
+export const POST = withAuth(['super_admin', 'admin'], async ({ payload, user, request }) => {
+  const body = await request.json()
 
-    const completedCents = disbursements.docs
-      .filter((item: any) => item.status === 'completed')
-      .reduce((sum: number, item: any) => sum + Number(item.amountCents || 0), 0)
-
-    return Response.json(
-      {
-        ok: true,
-        message: 'Disbursements loaded',
-        count: disbursements.totalDocs,
-        metrics: {
-          totalCents,
-          pendingCents,
-          completedCents,
-        },
-        disbursements: disbursements.docs,
-      },
-      {
-        headers: corsHeaders,
-      },
-    )
-  } catch (error: any) {
-    return Response.json(
-      {
-        ok: false,
-        error: error?.message || 'Failed to load disbursements',
-      },
-      {
-        status: 500,
-        headers: corsHeaders,
-      },
-    )
+  const validationError = validateCreateDisbursement(body)
+  if (validationError) {
+    return apiError(validationError, 400)
   }
-}
 
-export const POST = async (request: Request) => {
-  try {
-    const payload = await getPayload({
-      config: configPromise,
-    })
+  const normalizedPurpose = normalizePurpose(body.purpose)
+  const idempotencyKey = crypto.randomUUID()
 
-    const body = (await request.json()) as CreateDisbursementBody
+  const disbursement = await payload.create({
+    collection: 'disbursements',
+    data: {
+      clientId: body.clientId,
+      clientName: body.clientName,
+      vendorId: body.vendorId,
+      vendorName: body.vendorName,
+      amountCents: body.amountCents,
+      purpose: normalizedPurpose,
+      description: body.description || '',
+      railType: 'ghost',
+      status: 'pending',
+      idempotencyKey,
+      provider: 'manual',
+      providerPaymentId: `ghost_${crypto.randomUUID()}`,
+    },
+    overrideAccess: false,
+    user,
+  })
 
-    const {
-      clientId,
-      clientName,
-      vendorId,
-      vendorName,
-      amountCents,
-      purpose,
-      description,
-    } = body
-
-    if (
-      !clientId ||
-      !clientName ||
-      !vendorId ||
-      !vendorName ||
-      !amountCents ||
-      !purpose
-    ) {
-      return Response.json(
-        {
-          ok: false,
-          error:
-            'clientId, clientName, vendorId, vendorName, amountCents, and purpose are required',
-        },
-        {
-          status: 400,
-          headers: corsHeaders,
-        },
-      )
-    }
-
-    if (amountCents <= 0) {
-      return Response.json(
-        {
-          ok: false,
-          error: 'amountCents must be greater than 0',
-        },
-        {
-          status: 400,
-          headers: corsHeaders,
-        },
-      )
-    }
-
-    const normalizedPurpose = normalizePurpose(purpose)
-
-    if (!allowedPurposes.has(normalizedPurpose)) {
-      return Response.json(
-        {
-          ok: false,
-          error: 'Invalid purpose',
-        },
-        {
-          status: 400,
-          headers: corsHeaders,
-        },
-      )
-    }
-
-    const idempotencyKey = crypto.randomUUID()
-
-    const disbursement = await payload.create({
-      collection: 'disbursements',
-      data: {
-        clientId,
-        clientName,
-        vendorId,
-        vendorName,
-        amountCents,
-        purpose: normalizedPurpose,
-        description: description || '',
-        railType: 'ghost',
-        status: 'pending',
-        idempotencyKey,
-        provider: 'manual',
-        providerPaymentId: `ghost_${crypto.randomUUID()}`,
-      },
-    })
-
-    return Response.json(
-      {
-        ok: true,
-        message: 'Ghost disbursement created',
-        disbursement,
-      },
-      {
-        status: 201,
-        headers: corsHeaders,
-      },
-    )
-  } catch (error: any) {
-    return Response.json(
-      {
-        ok: false,
-        error: error?.message || 'Failed to create disbursement',
-      },
-      {
-        status: 500,
-        headers: corsHeaders,
-      },
-    )
-  }
-}
+  return apiJson({ ok: true, message: 'Ghost disbursement created', disbursement }, 201)
+})

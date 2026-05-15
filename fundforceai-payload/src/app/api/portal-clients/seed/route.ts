@@ -1,98 +1,152 @@
-import configPromise from '@payload-config'
-import { getPayload } from 'payload'
+/**
+ * POST /api/portal-clients/seed
+ *
+ * ⚠️  TEMPORARILY PUBLIC — no auth required for first boot.
+ *     After running once, replace this file with the locked version.
+ *
+ * Creates:
+ *   - 1 super_admin user (admin@merbi.com)
+ *   - 1 admin user (ops@merbi.com)
+ *   - 13 client businesses with vendor allocations
+ *   - 13 client user logins (one per business, linked via relatedClient)
+ *
+ * Safe to run multiple times — skips existing records.
+ */
 
-import { mockClients } from '@/lib/seed/mockClients'
-import { toPayloadClient } from '@/lib/seed/transformClient'
+import { withPublic, withCors, apiJson } from '@/lib/apiHandler'
+import { seedUsers, seedClients } from '@/lib/seed/seedData'
 
-const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173'
+export const OPTIONS = withCors()
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': allowedOrigin,
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
-}
-
-export const OPTIONS = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: corsHeaders,
+export const GET = withPublic(async () => {
+  return apiJson({
+    ok: true,
+    message: 'Seed route ready. Use POST to run.',
+    adminUsers: seedUsers.length,
+    clients: seedClients.length,
   })
-}
+})
 
-export const GET = async () => {
-  return Response.json(
-    {
-      ok: true,
-      message: 'Seed route exists. Use POST to run the seed.',
-      mockCount: mockClients.length,
-    },
-    {
-      headers: corsHeaders,
-    },
-  )
-}
+export const POST = withPublic(async ({ payload }) => {
+  const results = {
+    adminsCreated: [] as string[],
+    adminsSkipped: [] as string[],
+    clientsCreated: [] as string[],
+    clientsSkipped: [] as string[],
+    clientUsersCreated: [] as string[],
+    clientUsersSkipped: [] as string[],
+  }
 
-export const POST = async () => {
-  try {
-    const payload = await getPayload({ config: configPromise })
+  // ------------------------------------------------------------------
+  // 1. Create admin/operator users
+  // ------------------------------------------------------------------
+  for (const adminUser of seedUsers) {
+    const existing = await payload.find({
+      collection: 'users',
+      where: { email: { equals: adminUser.email } },
+      limit: 1,
+      overrideAccess: true,
+    })
 
-    const savedClients = []
-
-    for (const mockClient of mockClients) {
-      const clientData = toPayloadClient(mockClient)
-
-      const existing = await payload.find({
-        collection: 'clients',
-        where: {
-          externalId: {
-            equals: clientData.externalId,
-          },
-        },
-        limit: 1,
-      })
-
-      if (existing.docs[0]) {
-        const updated = await payload.update({
-          collection: 'clients',
-          id: existing.docs[0].id,
-          data: clientData,
-        })
-
-        savedClients.push(updated)
-      } else {
-        const created = await payload.create({
-          collection: 'clients',
-          data: clientData,
-        })
-
-        savedClients.push(created)
-      }
+    if (existing.docs.length > 0) {
+      results.adminsSkipped.push(adminUser.email)
+      continue
     }
 
-    return Response.json(
-      {
-        ok: true,
-        message: 'Mock clients seeded',
-        count: savedClients.length,
-        clientIds: savedClients.map((client: any) => client.externalId || client.id),
+    await payload.create({
+      collection: 'users',
+      data: {
+        email: adminUser.email,
+        password: adminUser.password,
+        fullName: adminUser.fullName,
+        role: adminUser.role,
       },
-      {
-        headers: corsHeaders,
-      },
-    )
-  } catch (error: any) {
-    console.error('Seed clients error:', error)
+      overrideAccess: true,
+    })
 
-    return Response.json(
-      {
-        ok: false,
-        error: error?.message || 'Seed failed',
-      },
-      {
-        status: 500,
-        headers: corsHeaders,
-      },
-    )
+    results.adminsCreated.push(adminUser.email)
   }
-}
+
+  // ------------------------------------------------------------------
+  // 2. Create client businesses + linked user logins
+  // ------------------------------------------------------------------
+  for (const seedClient of seedClients) {
+
+    let clientRecord: any = null
+
+    const existingClient = await payload.find({
+      collection: 'clients',
+      where: { externalId: { equals: seedClient.externalId } },
+      limit: 1,
+      overrideAccess: true,
+    })
+
+    if (existingClient.docs.length > 0) {
+      clientRecord = existingClient.docs[0]
+      results.clientsSkipped.push(seedClient.externalId)
+    } else {
+      clientRecord = await payload.create({
+        collection: 'clients',
+        data: {
+          externalId: seedClient.externalId,
+          name: seedClient.name,
+          signedAt: seedClient.signedAt,
+          category: seedClient.category,
+          status: seedClient.status,
+          pointOfContact: seedClient.pointOfContact,
+          email: seedClient.email,
+          phone: seedClient.phone,
+          ein: seedClient.ein,
+          address: seedClient.address,
+          totalAllocation: seedClient.totalAllocation,
+          vendors: seedClient.vendors,
+          history: seedClient.history,
+        },
+        overrideAccess: true,
+      })
+      results.clientsCreated.push(seedClient.externalId)
+    }
+
+    const existingUser = await payload.find({
+      collection: 'users',
+      where: { email: { equals: seedClient.userEmail } },
+      limit: 1,
+      overrideAccess: true,
+    })
+
+    if (existingUser.docs.length > 0) {
+      results.clientUsersSkipped.push(seedClient.userEmail)
+      continue
+    }
+
+    await payload.create({
+      collection: 'users',
+      data: {
+        email: seedClient.userEmail,
+        password: seedClient.userPassword,
+        fullName: seedClient.userFullName,
+        role: 'client',
+        relatedClient: clientRecord.id,
+      },
+      overrideAccess: true,
+    })
+
+    results.clientUsersCreated.push(seedClient.userEmail)
+  }
+
+  return apiJson({
+    ok: true,
+    message: 'Seed complete — NOW REPLACE THIS FILE WITH THE LOCKED VERSION',
+    results,
+    loginCredentials: {
+      superAdmin: { email: 'admin@merbi.com', password: 'MerbiAdmin2026' },
+      admin: { email: 'ops@merbi.com', password: 'MerbiOps2026' },
+      clients: seedClients.map((c) => ({
+        business: c.name,
+        email: c.userEmail,
+        password: c.userPassword,
+        totalAllocation: c.totalAllocation,
+      })),
+    },
+  })
+})

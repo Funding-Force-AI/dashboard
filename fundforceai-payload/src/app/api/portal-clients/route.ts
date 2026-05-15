@@ -1,94 +1,73 @@
-import configPromise from '@payload-config'
-import { getPayload } from 'payload'
+/**
+ * GET  /api/portal-clients — list clients (auth required)
+ * POST /api/portal-clients — create a client (admin+ only)
+ *
+ * For client-role users, Payload's collection access control
+ * automatically scopes the query to only their relatedClient
+ * because we pass `overrideAccess: false, user`.
+ */
 
-const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173'
+import {
+  withAuth,
+  withCors,
+  apiJson,
+  apiError,
+  isSuperAdminOrAdmin,
+} from '@/lib/apiHandler'
+import { sanitizeClients } from '@/lib/sanitize'
+import { validateCreateClient } from '@/lib/validate'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': allowedOrigin,
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
-}
+export const OPTIONS = withCors()
 
-export const OPTIONS = async () => {
-  return new Response(null, { status: 204, headers: corsHeaders })
-}
+// ---- GET: list clients ----
+export const GET = withAuth([], async ({ payload, user }) => {
+  const result = await payload.find({
+    collection: 'clients',
+    limit: 100,
+    sort: '-createdAt',
+    overrideAccess: false,
+    user,
+  })
 
-export const GET = async () => {
-  try {
-    const payload = await getPayload({ config: configPromise })
+  const showFullEin = isSuperAdminOrAdmin(user)
+  const clients = sanitizeClients(result.docs, { showFullEin })
 
-    const result = await payload.find({
-      collection: 'clients',
-      limit: 100,
-      sort: '-createdAt',
-    })
+  return apiJson({
+    ok: true,
+    count: result.totalDocs,
+    clients,
+  })
+})
 
-    return Response.json(
-      {
-        ok: true,
-        count: result.totalDocs,
-        clients: result.docs,
-      },
-      { headers: corsHeaders },
-    )
-  } catch (error: any) {
-    return Response.json(
-      {
-        ok: false,
-        error: error?.message || 'Failed to fetch clients',
-      },
-      { status: 500, headers: corsHeaders },
-    )
+// ---- POST: create a client ----
+export const POST = withAuth(['super_admin', 'admin'], async ({ payload, user, request }) => {
+  const body = await request.json()
+
+  const validationError = validateCreateClient(body)
+  if (validationError) {
+    return apiError(validationError, 400)
   }
-}
 
-export const POST = async (request: Request) => {
-  try {
-    const payload = await getPayload({ config: configPromise })
-    const body = await request.json()
+  const client = await payload.create({
+    collection: 'clients',
+    data: {
+      externalId: body.externalId,
+      name: body.name,
+      signedAt: body.signedAt || '',
+      category: body.category || '',
+      status: body.status || 'Ready',
+      pointOfContact: body.pointOfContact || '',
+      email: body.email || '',
+      phone: body.phone || '',
+      ein: body.ein || '',
+      address: body.address || '',
+      totalAllocation: body.totalAllocation || 0,
+      vendors: body.vendors || [],
+      history: body.history || [],
+    },
+    overrideAccess: false,
+    user,
+  })
 
-    if (!body.externalId || !body.name) {
-      return Response.json(
-        { ok: false, error: 'externalId and name are required' },
-        { status: 400, headers: corsHeaders },
-      )
-    }
-
-    const client = await payload.create({
-      collection: 'clients',
-      data: {
-        externalId: body.externalId,
-        name: body.name,
-        signedAt: body.signedAt || '',
-        category: body.category || '',
-        status: body.status || 'Ready',
-        pointOfContact: body.pointOfContact || '',
-        email: body.email || '',
-        phone: body.phone || '',
-        ein: body.ein || '',
-        address: body.address || '',
-        totalAllocation: body.totalAllocation || 0,
-        vendors: body.vendors || [],
-        history: body.history || [],
-      },
-    })
-
-    return Response.json(
-      {
-        ok: true,
-        message: 'Client created',
-        client,
-      },
-      { status: 201, headers: corsHeaders },
-    )
-  } catch (error: any) {
-    return Response.json(
-      {
-        ok: false,
-        error: error?.message || 'Failed to create client',
-      },
-      { status: 500, headers: corsHeaders },
-    )
-  }
-}
+  return apiJson({ ok: true, message: 'Client created', client }, 201)
+})
